@@ -1,5 +1,5 @@
+# Sharpmines
 <p align="center">
-  <h1>Sharpmines</h1>
   <img src="images/sharpmines.png" alt="Minesweeper screenshot" width="600">
   <br>
   <em>Sharpmines running in the terminal</em>

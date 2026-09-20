@@ -315,9 +315,7 @@ internal class Program
 
         ShowBoard();
 
-        RenderBoard((-1, -1));
-
-        Console.WriteLine("\x1b[1m\x1b[38;5;76mYou win!\x1b[0m\n");
+        RenderBoard((-1, -1), "\x1b[1m\x1b[38;5;76mYou win!\x1b[0m");
     }
 
     static void GameOver((int, int) selected)
@@ -326,8 +324,7 @@ internal class Program
 
         ShowBoard();
 
-        RenderBoard(selected);
-        Console.WriteLine("\x1b[1m\x1b[38;5;196mGame Over!\x1b[0m\n");
+        RenderBoard(selected, "\x1b[1m\x1b[38;5;196mGame Over!\x1b[0m");
     }
         
     static void ShowBoard()
@@ -341,12 +338,22 @@ internal class Program
         }
     }
 
-    static void RenderBoard((int, int) selected)
+    static void RenderBoard((int, int) selected, string message = "")
     {
-        string str = "\x1b[1m";
+        string str = "";
+
+        string[] ui = [
+            "[Eventually a timer]",
+            "--------------------",
+            $"\x1b[1m{flagFg}F\x1b[0m{reset} {FlagCount,3}",
+            "",
+            $"{message}",
+            ""
+        ];
+
         for (int y = 0; y < BoardHeight; y++)
         {
-            
+            str += "\x1b[1m";
             for (int x = 0; x < BoardWidth; x++)
             {
                 byte space = Board[y, x];
@@ -380,13 +387,16 @@ internal class Program
 
                 str += reset;
             }
-            str += "\n";
-        }
+            
+            string uiLine = "";
+            if (y < ui.Length) uiLine = ui[y];
 
-        str += $"\x1b[1m\x1b[38;5;196mF\x1b[0m {FlagCount,3}";
+            str += $" \x1b[0m{uiLine}\n";
+        }
 
         Console.SetCursorPosition(0, 0);
         Console.WriteLine(str);
+        Console.SetCursorPosition(Board.GetLength(1) + 1, ui.Length);
     }
 
     static byte[,] GenerateBoard(int width, int height, int mineCount)

@@ -1,9 +1,12 @@
 ﻿using System.CommandLine;
+using System.Diagnostics;
 
 namespace sharpmines;
 
 internal class Program
 {
+    #region Variables
+
     static int BoardHeight;
     static int BoardWidth;
     static int MineCount;
@@ -17,6 +20,9 @@ internal class Program
 
     static int SolverSteps;
 
+    #endregion
+
+    #region Constants
     /*
         Byte data layout:
         
@@ -54,6 +60,8 @@ internal class Program
         {7, $"\x1b[38;5;234m7"},
         {8, $"\x1b[38;5;242m8"},
     };
+
+    #endregion
 
     static async Task<int> Main(string[] args)
     {
@@ -297,16 +305,16 @@ internal class Program
 
     static void FloodDig(byte[,] board, (int y, int x) startCoords)
     {
-        Stack<(int y, int x)> FloodStack = new();
-        FloodStack.Push(startCoords);
+        Queue<(int y, int x)> floodQueue = new();
+        floodQueue.Enqueue(startCoords);
 
         byte space = board[startCoords.y, startCoords.x];
 
         if (HasMine(space)) GameOver(startCoords);
 
-        while (FloodStack.Count > 0)
+        while (floodQueue.Count > 0)
         {
-            (int y, int x) coords = FloodStack.Pop();
+            (int y, int x) coords = floodQueue.Dequeue();
             space = board[coords.y, coords.x];
 
             Uncover(board, coords);
@@ -315,16 +323,10 @@ internal class Program
 
             if (GetCount(space) != 0) continue;
 
-            for (int y = coords.y - 1; y <= coords.y + 1; y++)
+            foreach ((int y, int x) in GetNeighborCoords(coords))
             {
-                for (int x = coords.x - 1; x <= coords.x + 1; x++)
-                {
-                    if (y < 0 || x < 0 || y >= BoardHeight || x >= BoardWidth) continue;
-
-                    if (!IsCovered(board[y, x])) continue;
-
-                    FloodStack.Push((y, x));
-                }
+                if (!IsCovered(board[y, x])) continue;
+                floodQueue.Enqueue((y, x));
             }
         }
     }
@@ -332,33 +334,30 @@ internal class Program
     static void ChordDig(byte[,] board, (int y, int x) startCoords)
     {
         int flags = 0;
-        for (int y = startCoords.y - 1; y <= startCoords.y + 1; y++)
-            for (int x = startCoords.x - 1; x <= startCoords.x + 1; x++)
-            {
-                if (y < 0 || x < 0 || y >= BoardHeight || x >= BoardWidth) continue;
-                if (IsFlagged(board[y, x])) flags++;
-            }
+
+        IEnumerable<(int y, int x)> neighbors = GetNeighborCoords(startCoords);
+
+        foreach ((int y, int x) in neighbors) 
+            if (IsFlagged(board[y, x])) flags++;
 
         if (flags != GetCount(board[startCoords.y, startCoords.x])) return;
 
-        for (int y = startCoords.y - 1; y <= startCoords.y + 1; y++)
+        foreach ((int y, int x) in neighbors)
         {
-            for (int x = startCoords.x - 1; x <= startCoords.x + 1; x++)
+            if (y < 0 || x < 0 || y >= BoardHeight || x >= BoardWidth) continue;
+
+            byte space = board[y, x];
+
+            if (IsFlagged(space)) continue;
+
+            FloodDig(board, (y, x));
+
+            if (HasMine(space))
             {
-                if (y < 0 || x < 0 || y >= BoardHeight || x >= BoardWidth) continue;
-
-                byte space = board[y, x];
-
-                if (IsFlagged(space)) continue;
-
-                FloodDig(board, (y, x));
-
-                if (HasMine(space))
-                {
-                    GameOver((y, x));
-                    return;
-                }
+                GameOver((y, x));
+                return;
             }
+            
         }
     }
 
@@ -386,6 +385,7 @@ internal class Program
         {
             for (int x = 0; x < BoardWidth; x++)
             {
+                if (HasMine(board[y, x]) && IsFlagged(board[y, x])) continue;
                 Uncover(board, (y, x));
             }
         }
@@ -478,15 +478,8 @@ internal class Program
                 if (HasMine(board[y, x])) continue;
 
                 byte count = 0;
-                for (int j = y - 1; j <= y + 1; j++)
-                {
-                    for (int k = x - 1; k <= x + 1; k++)
-                    {
-                        if (j < 0 || k < 0 || j >= height || k >= width) continue;
-
-                        if (HasMine(board[j, k])) count++;
-                    }
-                }
+                foreach ((int j, int k) in GetNeighborCoords((y, x)))
+                    if(HasMine(board[j, k])) count++;
 
                 board[y, x] |= count;
             }
@@ -497,23 +490,26 @@ internal class Program
 
     static byte[,] GenerateSafeBoard(int width, int height, int mineCount, (int y, int x) startCoords)
     {
-        byte[,] board = GenerateUnsafeBoard(width, height, mineCount, startCoords), solverBoard;
+        byte[,] board = {}, solverBoard;
 
-        if (SolverSteps == 0) return board;
+        if (SolverSteps == 0) return GenerateUnsafeBoard(width, height, mineCount, startCoords);
+        Stopwatch solverTimer = new();
 
-        for (int i = 0; i < 100; i++)
+        solverTimer.Start();
+
+        while(solverTimer.ElapsedMilliseconds < 150)
         {
             board = GenerateUnsafeBoard(width, height, mineCount, startCoords);
             solverBoard = (byte[,])board.Clone();
 
-            Console.Write($"\rSolving guessfree board. {i}");
-
             if (IsSolvable(solverBoard, startCoords))
                 break;
         }
+        
+        solverTimer.Stop();
 
-        FlagCount = mineCount;
-        Correct = 0;
+        Console.SetCursorPosition(0, 18);
+        Console.WriteLine(solverTimer.ElapsedMilliseconds);
 
         return board;
     }
@@ -548,20 +544,22 @@ internal class Program
         if (HasMine(space)) Correct--;
         FlagCount++;
     }
-    static IEnumerable<(int y, int x)> GetNeighbors(int y, int x)
+    static IEnumerable<(int y, int x)> GetNeighborCoords((int y, int x) coords)
     {
         for (int dy = -1; dy <= 1; dy++)
         {
             for (int dx = -1; dx <= 1; dx++)
             {
                 if (dx == 0 && dy == 0) continue;
-                int ny = y + dy, nx = x + dx;
+                int ny = coords.y + dy, nx = coords.x + dx;
                 if (ny >= 0 && ny < BoardHeight && nx >= 0 && nx < BoardWidth)
                     yield return (ny, nx);
             }
         }
     }
 
+    #region Solver
+    
     static bool IsSolvable(byte[,] board, (int y, int x) startCoords)
     {
         HashSet<(int y, int x)> activeClues = SolverFloodDig(board, startCoords);
@@ -591,26 +589,20 @@ internal class Program
             return activeClues;
         }
 
-        Stack<(int y, int x)> floodStack = new();
-        floodStack.Push(startCoords);
+        Queue<(int y, int x)> floodQueue = new();
+        floodQueue.Enqueue(startCoords);
 
-        while (floodStack.Count > 0)
+        while (floodQueue.Count > 0)
         {
-            var coords = floodStack.Pop();
-
-            for (int y = coords.y - 1; y <= coords.y + 1; y++)
+            foreach ((int y, int x) in GetNeighborCoords(floodQueue.Dequeue()))
             {
-                for (int x = coords.x - 1; x <= coords.x + 1; x++)
-                {
-                    if (y < 0 || x < 0 || y >= BoardHeight || x >= BoardWidth) continue;
-                    if (!IsCovered(board[y, x])) continue;
+                if (!IsCovered(board[y, x])) continue;
 
-                    Uncover(board, (y, x));
-                    byte count = GetCount(board[y, x]);
+                Uncover(board, (y, x));
+                byte count = GetCount(board[y, x]);
 
-                    if (count > 0) activeClues.Add((y, x)); // stop flooding
-                    else floodStack.Push((y, x));
-                }
+                if (count > 0) activeClues.Add((y, x)); // stop flooding
+                else floodQueue.Enqueue((y, x));
             }
         }
 
@@ -633,7 +625,7 @@ internal class Program
 
             // RenderBoard(board, (y, x));
 
-            List<(int y, int x)> neighbors = GetNeighbors(y, x).ToList();
+            List<(int y, int x)> neighbors = GetNeighborCoords((y, x)).ToList();
             List<(int y, int x)> hidden = neighbors.Where(
                 n => IsCovered(board[n.y, n.x]) && !IsFlagged(board[n.y, n.x])
             ).ToList();
@@ -688,11 +680,11 @@ internal class Program
         bool progress = false;
         var equations = new List<(List<(int y, int x)> hidden, int eff)>();
 
-        foreach (var (y, x) in activeClues)
+        foreach ((int y, int x) in activeClues)
         {
             byte space = board[y, x];
 
-            var neighbors = GetNeighbors(y, x).ToList();
+            var neighbors = GetNeighborCoords((y, x)).ToList();
             var hidden = neighbors.Where(n => IsCovered(board[n.y, n.x]) && !IsFlagged(board[n.y, n.x])).ToList();
             int flags = neighbors.Count(n => IsFlagged(board[n.y, n.x]));
             int effectiveCount = GetCount(space) - flags;
@@ -703,17 +695,17 @@ internal class Program
 
         HashSet<(int y, int x)> newClues = new();
 
-        foreach (var eq1 in equations)
+        foreach (var (hidden, eff) in equations)
         {
             foreach (var eq2 in equations)
             {
-                if (ReferenceEquals(eq1.hidden, eq2.hidden)) continue;
+                if (ReferenceEquals(hidden, eq2.hidden)) continue;
 
                 // Check if eq1 is a strict subset of eq2
-                if (eq1.hidden.All(eq2.hidden.Contains))
+                if (hidden.All(eq2.hidden.Contains))
                 {
-                    var diff = eq2.hidden.Where(h => !eq1.hidden.Contains(h)).ToList();
-                    int diffEff = eq2.eff - eq1.eff;
+                    var diff = eq2.hidden.Where(h => !hidden.Contains(h)).ToList();
+                    int diffEff = eq2.eff - eff;
 
                     if (diff.Count > 0)
                     {
@@ -763,4 +755,6 @@ internal class Program
 
         return uncovered == safeTileCount;
     }
+
+    #endregion
 }

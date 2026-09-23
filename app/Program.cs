@@ -1,5 +1,4 @@
 ﻿using System.CommandLine;
-using System.Security.Principal;
 
 namespace sharpmines;
 
@@ -15,6 +14,8 @@ internal class Program
     static byte[,] GlobalBoard = { };
     static bool IsRunning = true;
     static bool IsFirstMove = true;
+
+    static int SolverSteps;
 
     /*
         Byte data layout:
@@ -56,7 +57,22 @@ internal class Program
 
     static async Task<int> Main(string[] args)
     {
+        Option<int> solverStepOpt = new("max-steps", ["-s", "--max-steps"])
+        {
+            Description = "The maximum ammount of steps the solver can make, before giving up. Setting this to 0 will disable the solver.",
+            DefaultValueFactory = _ => 1000
+        };
+
+        solverStepOpt.Validators.Add(
+            (System.CommandLine.Parsing.OptionResult result) =>
+            {
+                int value = result.GetValue(solverStepOpt);
+                if (value < 0) result.AddError("Max steps must be 0 or more");
+            }
+        );
+        
         RootCommand rootCommand = new("Play a game of minesweeper, right in your terminal.");
+
         Command easy = new("easy", "Easy preset (9x9, 10 mines)");
         Command medium = new("medium", "Medium preset (16x16, 40 mines)");
         Command hard = new("hard", "Hard preset (30x16, 99 mines)");
@@ -110,15 +126,11 @@ internal class Program
             (System.CommandLine.Parsing.OptionResult result) =>
             {
                 float value = result.GetValue(countOpt);
-                if (value < 1)
-                {
-                    result.AddError("There must be at least one mine on the board");
-                }
+                if (value < 1) result.AddError("There must be at least one mine on the board");
 
-                if (result.GetValue(countOpt) > result.GetValue(heightOpt) * result.GetValue(widthOpt))
-                {
-                    result.AddError("There cannot be more mines than spaces.");
-                }
+                long totalSpaces = result.GetValue(heightOpt) * result.GetValue(widthOpt);
+
+                if (value > totalSpaces) result.AddError("There cannot be more mines than spaces.");
             }
         );
 
@@ -131,12 +143,30 @@ internal class Program
 
         rootCommand.Subcommands.Add(custom);
 
-        easy.SetAction(_ => Game(9, 9, 10));
-        medium.SetAction(_ => Game(16, 16, 40));
-        hard.SetAction(_ => Game(30, 16, 99));
+        easy.SetAction(r => {
+            SolverSteps = r.GetValue(solverStepOpt);
+            Game(9, 9, 10);
+        });
 
-        custom.SetAction((ParseResult r) => Game(r.GetValue(widthOpt), r.GetValue(heightOpt), r.GetValue(countOpt)));
+        medium.SetAction(r => {
+            SolverSteps = r.GetValue(solverStepOpt);
+            Game(16, 16, 40);
+        });
 
+        hard.SetAction(r => {
+            SolverSteps = r.GetValue(solverStepOpt);
+            Game(30, 16, 99);
+        });
+
+        custom.SetAction(r => {
+            SolverSteps = r.GetValue(solverStepOpt);
+            Game(r.GetValue(widthOpt), r.GetValue(heightOpt), r.GetValue(countOpt));
+        });
+        
+        Command[] cmds = [easy, medium, hard, custom];
+        
+        foreach (Command command in cmds) command.Options.Add(solverStepOpt);
+        
         ParseResult result = rootCommand.Parse(args);
         return result.Invoke();
     }
@@ -467,7 +497,9 @@ internal class Program
 
     static byte[,] GenerateSafeBoard(int width, int height, int mineCount, (int y, int x) startCoords)
     {
-        byte[,] board = { }, solverBoard;
+        byte[,] board = GenerateUnsafeBoard(width, height, mineCount, startCoords), solverBoard;
+
+        if (SolverSteps == 0) return board;
 
         for (int i = 0; i < 100; i++)
         {
@@ -534,9 +566,7 @@ internal class Program
     {
         HashSet<(int y, int x)> activeClues = SolverFloodDig(board, startCoords);
 
-        int maxSteps = 1000;
-
-        for (int i = 0; i < maxSteps; i++)
+        for (int i = 0; i < SolverSteps; i++)
         {
             if (!SolveStep(board, activeClues)) return false;
             if (IsBoardCleared(board)) return true;

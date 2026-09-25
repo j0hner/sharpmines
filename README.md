@@ -7,7 +7,7 @@
 
 Sharpmines is a simple minesweeper game built with .NET 10. It's visuals are powered exclusively by ansi escape sequences. The game Is built to look similar to the minesweeper from google we all *surely* all know and love, wich you can find [here](https://www.google.com/fbx?fbx=minesweeper).
 
-**Sharpmines is still work in progress**
+**Sharpmines is still work in progress!** For more info, you can check out the [TODO list](TODO.md).
 
 ## Features
 

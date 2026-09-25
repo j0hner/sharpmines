@@ -20,6 +20,10 @@ internal class Program
 
     static int SolverSteps;
 
+    static string[] Help = [
+        "                      \e[1;4;32mKey actions\e[22;24;39m\n\n         \e[1;4;34mMove around\e[22;24;39m  \e[90m╎\e[39m   \e[1;4;34mDig\e[22;24;39m   \e[90m╎\e[39m  \e[1;4;34mPlace flags\e[22;24;39m\n                      \e[90m╎\e[39m         \e[90m╎\e[39m\n              k       \e[90m╎\e[39m         \e[90m╎\e[39m\n            h j l     \e[90m╎\e[39m    D    \e[90m╎\e[39m       F\n                      \e[90m╎\e[39m         \e[90m╎\e[39m\n              ↑       \e[90m╎\e[39m         \e[90m╎\e[39m\n            ← ↓ →     \e[90m╎\e[39m  Space  \e[90m╎\e[39m       M\n \e[90m⏎ Next               ╎\e[39m         \e[90m╎\e[39m",
+        "                         \e[1;4;32mRules\e[22;24;39m\n\n   The board contains safe spots and \e[1mmines\e[22m. The goal\n     is to correctly \e[1mplace flags\e[22m on all the mines.\n                           -\nTo help you deduce where the mines are, some tiles have\n   a \e[1mnumber in them\e[22m.  This indicates how many of the\n             tile's 8 neighbors are mines.                   \n                           -\n \e[90m⏎ End\e[39m               Made by: \e[1;36mj0hner\e[22;24;39m"
+    ];
     #endregion
 
     #region Constants
@@ -182,6 +186,7 @@ internal class Program
     static void Game(int boardWidth, int boardHeight, int mineCount)
     {
         Console.Write("\x1b[?1049h");
+        Console.CursorVisible = false;
 
         BoardWidth = boardWidth;
         BoardHeight = boardHeight;
@@ -206,11 +211,13 @@ internal class Program
             {
                 RenderBoard(GlobalBoard, selected);
 
-                ConsoleKey key = Console.ReadKey(true).Key;
+                ConsoleKeyInfo key = Console.ReadKey(true);
+
+                if (key.KeyChar == '?') HelpMenu();
 
                 byte space = GlobalBoard[selected.y, selected.x];
 
-                switch (key)
+                switch (key.Key)
                 {
                     case ConsoleKey.LeftArrow:
                     case ConsoleKey.H:
@@ -244,7 +251,7 @@ internal class Program
 
                         break;
 
-                    case ConsoleKey.Enter:
+                    case ConsoleKey.Spacebar:
                     case ConsoleKey.D:
                         if (IsFirstMove)
                         {
@@ -290,6 +297,8 @@ internal class Program
                 if (Correct == MineCount) Win();
             }
 
+            Console.CursorVisible = true;
+            
             string answer;
             do
             {
@@ -298,6 +307,8 @@ internal class Program
             } while (answer != "y" && answer != "n");
 
             if (answer == "n") break;
+
+            Console.CursorVisible = false;
         }
 
         Console.Write("\x1b[?1049l");
@@ -359,6 +370,19 @@ internal class Program
             }
             
         }
+    }
+
+    static void HelpMenu()
+    {
+        foreach (string page in Help)
+        {
+            Console.Clear();
+            Console.Write(page);
+
+            do {} while (Console.ReadKey(true).Key != ConsoleKey.Enter);
+        }
+
+        Console.Clear();
     }
 
     static void Win()

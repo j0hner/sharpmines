@@ -35,7 +35,7 @@ public class Board
     public byte this[(int y, int x) coords]
     {
         get => Data[coords.y, coords.x];
-        set => Data[coords.y, coords.x] = value;
+        private set => Data[coords.y, coords.x] = value;
     }
 
     public Board(int boardWidth, int boardHeight, int mineCount)
@@ -45,6 +45,14 @@ public class Board
         MineCount = mineCount;
 
         Data = new byte[boardHeight, boardWidth];
+
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                Data[y, x] |= coverMask;
+            }
+        }
     }
 
     public Board(Board other)
@@ -87,8 +95,8 @@ public class Board
         if (count) Uncovered++;
     }
     public void Flag((int y, int x) coords) => this[coords] |= flagMask;
-    public void UnFlag((int y, int x) coords) => this[coords] &= unflagMask;
-    public void Reveal(byte[,] board)
+    public void Unflag((int y, int x) coords) => this[coords] &= unflagMask;
+    public void Reveal()
     {
         for (int y = 0; y < Height; y++)
         {
@@ -104,9 +112,12 @@ public class Board
 
     public bool FloodUncover((int y, int x) startCoords)
     {
+        if (!IsCovered(startCoords))
+            return true;
+
         Uncover(startCoords);
 
-        if (!IsCovered(startCoords) || GetCount(startCoords) > 0)
+        if (GetCount(startCoords) != 0)
             return true;
 
         if (HasMine(startCoords))
@@ -124,7 +135,7 @@ public class Board
                 Uncover(coords);
                 byte count = GetCount(coords);
 
-                if (count > 0) continue; // stop flooding
+                if (count != 0) continue; // stop flooding
                 else floodQueue.Enqueue(coords);
             }
         }
@@ -141,7 +152,7 @@ public class Board
 
         Uncover(startCoords);
 
-        if (GetCount(startCoords) > 0)
+        if (GetCount(startCoords) != 0)
         {
             activeClues.Add(startCoords);
             return activeClues;
@@ -184,7 +195,7 @@ public class Board
         return true;
     }
 
-    void GenerateRandom((int y, int x) startCoords)
+    public void GenerateRandom((int y, int x) startCoords)
     {
         for (int i = 0; i < MineCount; i++)
         {
@@ -218,7 +229,7 @@ public class Board
         }
     }
 
-    bool TryGenerateGuessfree((int y, int x) startCoords, int SolverSteps)
+    public bool TryGenerateGuessfree((int y, int x) startCoords, int SolverSteps)
     {
         if (SolverSteps == 0) {
             GenerateRandom(startCoords);

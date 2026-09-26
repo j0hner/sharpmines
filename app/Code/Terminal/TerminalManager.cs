@@ -30,7 +30,7 @@ public static class TerminalManager
         "                         \e[1;4;32mRules\e[22;24;39m\n\n   The board contains safe spots and \e[1mmines\e[22m. The goal\n     is to correctly \e[1mplace flags\e[22m on all the mines.\n                           -\nTo help you deduce where the mines are, some tiles have\n   a \e[1mnumber in them\e[22m.  This indicates how many of the\n             tile's 8 neighbors are mines.                   \n                           -\n \e[90m⏎ End\e[39m               Made by: \e[1;36mj0hner\e[22;24;39m"
     ];
 
-    public static void RenderBoard(Board board, GameState state)
+    public static void Render(MinesweeperGame state, string message = "")
     {
         string str = "";
 
@@ -39,19 +39,19 @@ public static class TerminalManager
             "--------------------",
             $"\x1b[1m{flagFg}F\x1b[0m{reset} {state.FlagCount,3}",
             "",
-            ""
+            message
         ];
 
-        for (int y = 0; y < board.Height; y++)
+        for (int y = 0; y < state.Board.Height; y++)
         {
             str += "\x1b[1m";
-            for (int x = 0; x < board.Width; x++)
+            for (int x = 0; x < state.Board.Width; x++)
             {
                 (int, int) coords = (y, x);
                 
                 bool isDark = (y % 2 + x) % 2 == 1;
                 bool isSelected = y == state.Selected.y && x == state.Selected.x;
-                bool isCovered = board.IsCovered(coords);
+                bool isCovered = state.Board.IsCovered(coords);
 
                 string bg = isDark ? darkUncoveredBg : lightUncoveredBg;
                 if (isCovered) bg = isDark ? darkCoveredBg : lightCoveredBg;
@@ -59,20 +59,20 @@ public static class TerminalManager
 
                 str += bg;
 
-                if (board.IsFlagged(coords))
+                if (state.Board.IsFlagged(coords))
                 {
                     string flagStr = $"{flagFg}F";
 
-                    if (!isCovered && !board.HasMine(coords))
+                    if (!isCovered && !state.Board.HasMine(coords))
                         flagStr = $"{flagFg}X";
 
                     str += flagStr;
                 }
-                else if (board.HasMine(coords) && !isCovered)
+                else if (state.Board.HasMine(coords) && !isCovered)
                 {
                     str += $"{mineFg}#";
                 }
-                else if (board.TryGetCount(coords, out byte count))
+                else if (state.Board.TryGetCount(coords, out byte count))
                     str += CountColors[count];
                 else
                     str += " ";
@@ -101,5 +101,33 @@ public static class TerminalManager
         }
 
         Console.Clear();
+    }
+
+    public static void SetupTerminal()
+    {
+        Console.Write("\x1b[?1049h");
+        Console.CursorVisible = false;
+    }
+
+    public static void CleanupTerminal()
+    {
+        Console.Write("\x1b[?1049l");
+        Console.CursorVisible = true;
+    }
+
+    public static bool AskReplay()
+    {
+        Console.CursorVisible = true;
+            
+        ConsoleKey answer;
+        do
+        {
+            Console.Write("\r\e[2KPlay again? [y/n]: ");
+            answer = Console.ReadKey().Key;
+        } while (answer != ConsoleKey.N && answer != ConsoleKey.Y);
+
+        Console.CursorVisible = false;
+        
+        return answer == ConsoleKey.Y;
     }
 }

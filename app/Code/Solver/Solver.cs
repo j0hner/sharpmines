@@ -19,12 +19,10 @@ public class Solver
 
     public bool IsSolvable()
     {
-        HashSet<(int y, int x)> activeClues = SolvingBoard.FloodUncoverClues(StartCoords);
-
         for (int i = 0; i < MaxSteps; i++)
         {
-            if (!TakeStep(activeClues)) return false;
             if (SolvingBoard.IsCleared()) return true;
+            if (!TakeStep(ActiveClues)) return false;
         }
 
         return SolvingBoard.IsCleared();
@@ -33,6 +31,8 @@ public class Solver
     private bool TakeStep(HashSet<(int y, int x)> activeClues)
     {
         bool progress = false;
+
+        Console.Write($"\r{activeClues.Count,4}");
         
         var cluesToProcess = activeClues.ToList();
         

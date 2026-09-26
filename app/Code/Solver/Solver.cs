@@ -40,8 +40,6 @@ public class Solver
 
         foreach ((int y, int x) coords in cluesToProcess)
         {
-            // RenderBoard(board, (y, x));
-
             IEnumerable<(int y, int x)> neighbors = SolvingBoard.GetNeighborCoords(coords).ToList();
             List<(int y, int x)> hidden = neighbors.Where(
                 n => SolvingBoard.IsCovered(n) && !SolvingBoard.IsFlagged(n)

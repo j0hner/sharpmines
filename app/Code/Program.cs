@@ -10,6 +10,18 @@ internal class Program
 
     static async Task<int> Main(string[] args)
     {
+        // Cleanup on crash and Ctrl + C
+        Console.CancelKeyPress += (_, e) =>
+        {
+            TerminalManager.CleanupTerminal();
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (_, _) =>
+        {
+            TerminalManager.CleanupTerminal();
+        };
+        
+        
         Option<int> solverStepOpt = new("max-steps", ["-s", "--max-steps"])
         {
             Description = "The maximum ammount of steps the solver can make, before giving up. Setting this to 0 will disable the solver.",

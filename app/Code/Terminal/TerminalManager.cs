@@ -1,3 +1,4 @@
+using System.Text;
 using sharpmines.Game;
 
 namespace sharpmines.Terminal;
@@ -32,7 +33,7 @@ public static class TerminalManager
 
     public static void Render(MinesweeperGame state, string message = "")
     {
-        string str = "";
+        StringBuilder builder = new();
 
         string[] ui = [
             "[Eventually a timer]",
@@ -44,7 +45,7 @@ public static class TerminalManager
 
         for (int y = 0; y < state.Board.Height; y++)
         {
-            str += "\x1b[1m";
+            builder.Append("\x1b[1m");
             for (int x = 0; x < state.Board.Width; x++)
             {
                 (int, int) coords = (y, x);
@@ -57,7 +58,7 @@ public static class TerminalManager
                 if (isCovered) bg = isDark ? darkCoveredBg : lightCoveredBg;
                 if (isSelected) bg = selectedBg;
 
-                str += bg;
+                builder.Append(bg);
 
                 if (state.Board.IsFlagged(coords))
                 {
@@ -66,28 +67,28 @@ public static class TerminalManager
                     if (!isCovered && !state.Board.HasMine(coords))
                         flagStr = $"{flagFg}X";
 
-                    str += flagStr;
+                    builder.Append(flagStr);
                 }
                 else if (state.Board.HasMine(coords) && !isCovered)
                 {
-                    str += $"{mineFg}#";
+                    builder.Append($"{mineFg}#");
                 }
                 else if (state.Board.TryGetCount(coords, out byte count))
-                    str += CountColors[count];
+                    builder.Append(CountColors[count]);
                 else
-                    str += " ";
+                    builder.Append(' ');
 
-                str += reset;
+                builder.Append(reset);
             }
 
             string uiLine = "";
             if (y < ui.Length) uiLine = ui[y];
 
-            str += $" \x1b[0m{uiLine}\n";
+            builder.AppendLine($" \x1b[0m{uiLine}");
         }
 
         Console.SetCursorPosition(0, 0);
-        Console.WriteLine(str);
+        Console.WriteLine(builder);
     }
 
     public static void HelpMenu()
@@ -105,6 +106,9 @@ public static class TerminalManager
 
     public static void SetupTerminal()
     {
+        Console.CancelKeyPress += (_, e) => CleanupTerminal();
+        AppDomain.CurrentDomain.UnhandledException += (_, _) => CleanupTerminal();
+        
         Console.Write("\x1b[?1049h");
         Console.CursorVisible = false;
     }

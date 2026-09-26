@@ -19,8 +19,8 @@ public class MinesweeperGame(int boardWidth, int boardHeight, int mineCount, int
         Selected.y += move.dy;
         Selected.x += move.dx;
 
-        Selected.y = Math.Clamp(Selected.y, 0, Board.Height);
-        Selected.x = Math.Clamp(Selected.x, 0, Board.Width);
+        Selected.y = Math.Clamp(Selected.y, 0, Board.Height - 1);
+        Selected.x = Math.Clamp(Selected.x, 0, Board.Width - 1);
     }
 
     public void Dig()

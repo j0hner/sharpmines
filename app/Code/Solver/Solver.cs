@@ -117,7 +117,7 @@ public class Solver
                 if (ReferenceEquals(eq1.hidden, eq2.hidden)) continue;
 
                 // Check if eq1 is a strict subset of eq2
-                if (eq2.hidden.All(eq2.hidden.Contains))
+                if (eq2.hidden.All(eq1.hidden.Contains))
                 {
                     var diff = eq2.hidden.Where(h => !eq1.hidden.Contains(h)).ToList();
                     int diffEff = eq2.eff - eq1.eff;

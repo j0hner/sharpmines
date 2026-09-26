@@ -31,7 +31,7 @@ public class Board
 
     public bool IsPlayable { get; private set; } = false;
 
-    private readonly byte[,] Data;
+    private byte[,] Data;
     public byte this[(int y, int x) coords]
     {
         get => Data[coords.y, coords.x];
@@ -60,6 +60,7 @@ public class Board
         Height = other.Height;
         Width = other.Width;
         MineCount = other.MineCount;
+        Uncovered = other.Uncovered;
 
         Data = (byte[,])other.Data.Clone();
     }
@@ -74,7 +75,7 @@ public class Board
 
         return count > 0 && !IsCovered(coords);
     }
-    public bool IsCleared() => Uncovered >= (Width * Height) - MineCount;
+    public bool IsCleared() => Uncovered == (Width * Height) - MineCount;
 
     public IEnumerable<(int y, int x)> GetNeighborCoords((int y, int x) coords)
     {
@@ -91,8 +92,8 @@ public class Board
     }
 
     public void Uncover((int y, int x) coords, bool count = true)  {
+        if (count && IsCovered(coords)) Uncovered++;
         this[coords] &= uncoverMask;
-        if (count) Uncovered++;
     }
     public void Flag((int y, int x) coords) => this[coords] |= flagMask;
     public void Unflag((int y, int x) coords) => this[coords] &= unflagMask;
@@ -197,6 +198,8 @@ public class Board
 
     public void GenerateRandom((int y, int x) startCoords)
     {
+        Data = new byte[Height, Width];
+        
         for (int i = 0; i < MineCount; i++)
         {
             int x, y;
